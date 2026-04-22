@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: mindsense
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app --workers 1 --threads 2 --timeout 120"
+    envVars:
+      - key: LIBROSA_CACHE_DIR
+        value: /tmp/librosa_cache
+      - key: NUMBA_DISABLE_JIT
+        value: "1"
