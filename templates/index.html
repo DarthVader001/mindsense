@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MindSense</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Poppins', sans-serif; background: #f0f2f5; color: #333; min-height: 100vh; }
+
+    .navbar { background: #1a73e8; color: white; padding: 14px 30px; display: flex; align-items: center; justify-content: space-between; }
+    .navbar .brand { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+    .navbar .brand span { color: #a8c7fa; }
+
+    .wrapper { max-width: 860px; margin: 0 auto; padding: 28px 16px; }
+
+    .hero { background: white; border-radius: 8px; padding: 28px 30px; margin-bottom: 20px; border-left: 5px solid #1a73e8; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .hero h1 { font-size: 20px; font-weight: 700; color: #1a73e8; margin-bottom: 6px; }
+    .hero p  { font-size: 13.5px; color: #555; line-height: 1.6; }
+
+    .section-card { background: white; border-radius: 8px; padding: 24px 26px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
+    .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #e8eaed; }
+    .section-header h2 { font-size: 16px; font-weight: 600; color: #222; }
+    .sec-badge { margin-left: auto; font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 4px; text-transform: uppercase; }
+    .badge-done { background: #e6f4ea; color: #34a853; }
+    .badge-wip  { background: #fff8e1; color: #f57f17; }
+
+    textarea { width: 100%; border: 1px solid #dadce0; border-radius: 6px; padding: 12px 14px; font-family: 'Poppins', sans-serif; font-size: 13.5px; color: #333; resize: vertical; min-height: 130px; transition: border 0.2s; outline: none; line-height: 1.6; }
+    textarea:focus { border-color: #1a73e8; }
+    textarea::placeholder { color: #aaa; }
+
+    .q-group-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #1a73e8; margin: 18px 0 10px; }
+    .q-hint { font-size: 12px; color: #888; margin-bottom: 12px; }
+    .q-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid #f1f3f4; gap: 12px; }
+    .q-row:last-of-type { border-bottom: none; }
+    .q-row .q-text { font-size: 13px; color: #444; flex: 1; }
+    .q-opts { display: flex; gap: 5px; }
+    .q-btn { width: 32px; height: 32px; border-radius: 6px; border: 1.5px solid #dadce0; background: #f8f9fa; font-size: 12px; font-weight: 600; color: #666; cursor: pointer; transition: all 0.15s; font-family: 'Poppins', sans-serif; }
+    .q-btn:hover { border-color: #1a73e8; color: #1a73e8; }
+    .q-btn.sel { background: #1a73e8; border-color: #1a73e8; color: white; }
+
+    .audio-upload-box { border: 2px dashed #dadce0; border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: border 0.2s; }
+    .audio-upload-box:hover { border-color: #1a73e8; }
+    .audio-upload-box p { font-size: 13px; color: #888; margin-top: 6px; }
+    .audio-upload-box .icon { font-size: 28px; }
+    #audio-filename { font-size: 12px; color: #34a853; margin-top: 8px; font-weight: 600; }
+    input[type="file"] { display: none; }
+
+    .btn-submit { display: block; width: 100%; max-width: 340px; margin: 0 auto 12px; padding: 13px; background: #1a73e8; color: white; border: none; border-radius: 6px; font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    .btn-submit:hover    { background: #1557b0; }
+    .btn-submit:disabled { background: #a8c7f7; cursor: not-allowed; }
+
+    .loading { display: none; text-align: center; padding: 30px; }
+    .loading.show { display: block; }
+    .spinner { width: 36px; height: 36px; border: 3px solid #e8eaed; border-top-color: #1a73e8; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
+
+    #results { display: none; }
+    #results.show { display: block; }
+
+    .result-box { background: white; border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
+    .result-box h3 { font-size: 13px; color: #888; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .big-score { font-size: 64px; font-weight: 700; line-height: 1; margin-bottom: 8px; }
+    .risk-pill { display: inline-block; padding: 5px 18px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-bottom: 14px; }
+    .pill-low      { background: #e6f4ea; color: #34a853; }
+    .pill-moderate { background: #fff3e0; color: #e65100; }
+    .pill-high     { background: #fce8e6; color: #c5221f; }
+    .rec-text { font-size: 13px; color: #555; max-width: 440px; margin: 0 auto; }
+    .score-bar { height: 8px; background: #f1f3f4; border-radius: 4px; max-width: 260px; margin: 12px auto 6px; overflow: hidden; }
+    .score-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg,#34a853,#fbbc04,#ea4335); transition: width 1s; }
+
+    .res-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .res-card { background: white; border-radius: 8px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
+    .res-card h4 { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+    .res-row { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid #f1f3f4; }
+    .res-row:last-child { border-bottom: none; }
+    .res-row span { color: #777; }
+    .chip { display: inline-block; background: #fce8e6; color: #c5221f; border-radius: 4px; padding: 2px 7px; font-size: 11px; margin: 2px; }
+    .chip.pos { background: #e6f4ea; color: #34a853; }
+    .flag-q9 { background: #fce8e6; border: 1px solid #f5c6c2; border-radius: 6px; padding: 8px 12px; font-size: 12px; color: #c5221f; margin-top: 10px; font-weight: 600; }
+
+    footer { text-align: center; padding: 20px; font-size: 12px; color: #aaa; border-top: 1px solid #e8eaed; margin-top: 10px; background: white; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="navbar">
+  <div class="brand">Mind<span>Sense</span></div>
+  <small style="color:#a8c7fa;font-size:11px;">Early Mental Health Detection System</small>
+</div>
+
+<div class="wrapper">
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1>Early Detection of Mental Health Disorders</h1>
+    <p>A multimodal system that analyzes text, clinical questionnaire responses (PHQ-9 &amp; GAD-7), and speech patterns to identify early signs of depression, anxiety, and stress.</p>
+  </div>
+
+  <!-- Modality 1: Text -->
+  <div class="section-card">
+    <div class="section-header">
+      <h2>📝 Modality 1 — Text / Journal Entry</h2>
+      <span class="sec-badge badge-done">Complete</span>
+    </div>
+    <textarea id="journal-text" placeholder="Write how you have been feeling recently. Describe your mood, sleep, energy levels, or anything on your mind..."></textarea>
+    <p style="font-size:12px;color:#aaa;margin-top:6px;">Write at least 2–3 sentences for better accuracy.</p>
+  </div>
+
+  <!-- Modality 2: Questionnaire -->
+  <div class="section-card">
+    <div class="section-header">
+      <h2>📋 Modality 2 — Clinical Questionnaire</h2>
+      <span class="sec-badge badge-done">Complete</span>
+    </div>
+
+    <p class="q-hint">Over the last 2 weeks, how often were you bothered by the following? &nbsp;(0 = Not at all &nbsp;|&nbsp; 3 = Nearly every day)</p>
+
+    <div class="q-group-label">PHQ-9 — Depression Screening</div>
+    <div id="phq9-container"></div>
+
+    <div class="q-group-label" style="margin-top:24px;">GAD-7 — Anxiety Screening</div>
+    <div id="gad7-container"></div>
+  </div>
+
+  <!-- Modality 3: Audio -->
+  <div class="section-card">
+    <div class="section-header">
+      <h2>🎙️ Modality 3 — Audio / Speech Analysis</h2>
+      <span class="sec-badge badge-wip">Optional</span>
+    </div>
+    <div class="audio-upload-box" onclick="document.getElementById('audio-input').click()">
+      <div class="icon">🎵</div>
+      <p><strong>Click to upload a voice recording</strong></p>
+      <p>Supported formats: .wav, .mp3 &nbsp;|&nbsp; Max 60 seconds</p>
+      <p id="audio-filename"></p>
+    </div>
+    <input type="file" id="audio-input" accept=".wav,.mp3" onchange="audioSelected(this)"/>
+    <p style="font-size:12px;color:#aaa;margin-top:8px;">Audio is optional. If not provided, the score is based on text and questionnaire only.</p>
+  </div>
+
+  <!-- Submit -->
+  <button class="btn-submit" id="analyze-btn" onclick="runAnalysis()">
+    Analyze My Responses
+  </button>
+  <p style="text-align:center;font-size:11.5px;color:#999;margin-bottom:24px;">This is a screening tool only — not a clinical diagnosis.</p>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p style="font-size:13px;color:#888;">Analyzing your responses...</p>
+  </div>
+
+  <!-- Results -->
+  <div id="results">
+    <div class="result-box">
+      <h3>Overall Risk Score</h3>
+      <div class="big-score" id="big-score">--</div>
+      <div id="risk-pill-box"></div>
+      <div class="score-bar"><div class="score-fill" id="score-fill" style="width:0%"></div></div>
+      <div style="display:flex;justify-content:space-between;max-width:260px;margin:0 auto 14px;font-size:11px;color:#aaa;">
+        <span>Low</span><span>Moderate</span><span>High</span>
+      </div>
+      <p class="rec-text" id="rec-text"></p>
+      <p id="modalities-note" style="font-size:11px;color:#bbb;margin-top:10px;"></p>
+    </div>
+    <div class="res-grid" id="res-grid"></div>
+  </div>
+
+</div>
+
+<footer>
+  Pratyaksh Kumawat (BTECH/25009/22) &nbsp;|&nbsp; Sourabh Shekhawat (BTECH/25023/22) &nbsp;|&nbsp;
+  Minor Project CS400M &nbsp;|&nbsp; BIT Mesra, Jaipur Campus
+</footer>
+
+<script>
+const PHQ9 = [
+  "Little interest or pleasure in doing things",
+  "Feeling down, depressed, or hopeless",
+  "Trouble falling or staying asleep, or sleeping too much",
+  "Feeling tired or having little energy",
+  "Poor appetite or overeating",
+  "Feeling bad about yourself or that you are a failure",
+  "Trouble concentrating on things",
+  "Moving or speaking so slowly that others noticed",
+  "Thoughts that you would be better off dead or of hurting yourself"
+];
+
+const GAD7 = [
+  "Feeling nervous, anxious, or on edge",
+  "Not being able to stop or control worrying",
+  "Worrying too much about different things",
+  "Trouble relaxing",
+  "Being so restless that it is hard to sit still",
+  "Becoming easily annoyed or irritable",
+  "Feeling afraid, as if something awful might happen"
+];
+
+const answers = { phq9: new Array(9).fill(0), gad7: new Array(7).fill(0) };
+
+function buildQ(questions, containerId, type) {
+  const c = document.getElementById(containerId);
+  questions.forEach((q, i) => {
+    const row = document.createElement('div');
+    row.className = 'q-row';
+    row.innerHTML = `
+      <div class="q-text">${i+1}. ${q}</div>
+      <div class="q-opts">
+        ${[0,1,2,3].map(v=>`<button class="q-btn ${v===0?'sel':''}" onclick="pick('${type}',${i},${v},this)">${v}</button>`).join('')}
+      </div>`;
+    c.appendChild(row);
+  });
+}
+
+function pick(type, i, val, btn) {
+  answers[type][i] = val;
+  btn.parentElement.querySelectorAll('.q-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+}
+
+function audioSelected(input) {
+  const file = input.files[0];
+  if (file) {
+    document.getElementById('audio-filename').textContent = '✓ ' + file.name + ' selected';
+  }
+}
+
+buildQ(PHQ9, 'phq9-container', 'phq9');
+buildQ(GAD7, 'gad7-container', 'gad7');
+
+async function runAnalysis() {
+  const text = document.getElementById('journal-text').value.trim();
+  if (!text) { alert('Please write something in the journal entry first.'); return; }
+
+  document.getElementById('analyze-btn').disabled = true;
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('results').classList.remove('show');
+
+  const fd = new FormData();
+  fd.append('journal_text', text);
+  fd.append('questionnaire', JSON.stringify(answers));
+
+  const audioFile = document.getElementById('audio-input').files[0];
+  if (audioFile) fd.append('audio_file', audioFile);
+
+  try {
+    const res = await fetch('/analyze', { method: 'POST', body: fd });
+    const data = await res.json();
+    showResults(data);
+  } catch(e) {
+    alert('Error connecting to server. Make sure Flask is running.');
+  } finally {
+    document.getElementById('loading').classList.remove('show');
+    document.getElementById('analyze-btn').disabled = false;
+  }
+}
+
+function showResults(data) {
+  const resultsEl = document.getElementById('results');
+  resultsEl.classList.add('show');
+  resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const f = data.fusion;
+  if (!f) return;
+
+  const score = f.final_score;
+  const scoreEl = document.getElementById('big-score');
+  scoreEl.textContent = score;
+  scoreEl.style.color = score < 30 ? '#34a853' : score < 60 ? '#e65100' : '#c5221f';
+
+  const lvl = f.risk_level.toLowerCase();
+  const pillClass = lvl === 'low' ? 'pill-low' : lvl === 'moderate' ? 'pill-moderate' : 'pill-high';
+  document.getElementById('risk-pill-box').innerHTML = `<div class="risk-pill ${pillClass}">${f.risk_level} Risk</div>`;
+  setTimeout(() => { document.getElementById('score-fill').style.width = score + '%'; }, 100);
+  document.getElementById('rec-text').textContent = f.recommendation;
+  document.getElementById('modalities-note').textContent = f.note || '';
+
+  const grid = document.getElementById('res-grid');
+  grid.innerHTML = '';
+
+  // ── Text card ──────────────────────────────────────────
+  if (data.text) {
+    const t = data.text;
+    const kw = t.detected_keywords || {};
+    const neg = [...(kw.depression||[]), ...(kw.anxiety||[]), ...(kw.stress||[])];
+    const pos = kw.positive || [];
+    const c = document.createElement('div'); c.className = 'res-card';
+    c.innerHTML = `
+      <h4>📝 Text Analysis &nbsp;<span style="color:#34a853;font-weight:700;font-size:10px;">COMPLETE</span></h4>
+      <div class="res-row"><span>Risk Score</span><strong>${t.risk_score} / 100</strong></div>
+      <div class="res-row"><span>Sentiment</span><strong>${t.sentiment}</strong></div>
+      <div class="res-row"><span>Main Concern</span><strong>${t.dominant_condition}</strong></div>
+      <div class="res-row"><span>Words Checked</span><strong>${t.word_count}</strong></div>
+      <div style="margin-top:8px">
+        ${neg.map(k=>`<span class="chip">${k}</span>`).join('')}
+        ${pos.map(k=>`<span class="chip pos">${k}</span>`).join('')}
+      </div>`;
+    grid.appendChild(c);
+  }
+
+  // ── Questionnaire card ─────────────────────────────────
+  if (data.questionnaire) {
+    const q = data.questionnaire;
+    const c = document.createElement('div'); c.className = 'res-card';
+    let html = `<h4>📋 Questionnaire &nbsp;<span style="color:#34a853;font-weight:700;font-size:10px;">COMPLETE</span></h4>`;
+
+    if (q.phq9 && q.phq9.status === 'complete') {
+      html += `
+        <div class="res-row"><span>PHQ-9 Score</span><strong>${q.phq9.total_score} / 27</strong></div>
+        <div class="res-row"><span>Depression</span><strong>${q.phq9.interpretation}</strong></div>`;
+      if (q.phq9.flag_q9) {
+        html += `<div class="flag-q9">⚠ Question 9 flagged — please seek professional support</div>`;
+      }
+    }
+    if (q.gad7 && q.gad7.status === 'complete') {
+      html += `
+        <div class="res-row" style="margin-top:8px"><span>GAD-7 Score</span><strong>${q.gad7.total_score} / 21</strong></div>
+        <div class="res-row"><span>Anxiety</span><strong>${q.gad7.interpretation}</strong></div>`;
+    }
+    if (q.risk_score !== undefined) {
+      html += `<div class="res-row"><span>Combined Q Score</span><strong>${q.risk_score} / 100</strong></div>`;
+    }
+    c.innerHTML = html;
+    grid.appendChild(c);
+  }
+
+  // ── Audio card ─────────────────────────────────────────
+  if (data.audio && data.audio.status !== 'not_provided') {
+    const a = data.audio;
+    const c = document.createElement('div'); c.className = 'res-card';
+    let html = `<h4>🎙️ Audio Analysis &nbsp;<span style="color:#34a853;font-weight:700;font-size:10px;">COMPLETE</span></h4>`;
+    if (a.features) {
+      html += `
+        <div class="res-row"><span>Risk Score</span><strong>${a.risk_score} / 100</strong></div>
+        <div class="res-row"><span>Mean Pitch</span><strong>${a.features.mean_pitch_hz} Hz</strong></div>
+        <div class="res-row"><span>Energy</span><strong>${a.features.mean_energy}</strong></div>
+        <div class="res-row"><span>Tempo</span><strong>${a.features.tempo_bpm} BPM</strong></div>`;
+      if (a.indicators && a.indicators.length) {
+        html += `<div style="margin-top:8px;font-size:12px;color:#c5221f;">${a.indicators.join(' · ')}</div>`;
+      }
+    } else {
+      html += `<div style="font-size:12px;color:#aaa;">${a.message || a.error || 'No audio data'}</div>`;
+    }
+    c.innerHTML = html;
+    grid.appendChild(c);
+  }
+}
+</script>
+</body>
+</html>
