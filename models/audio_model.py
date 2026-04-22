@@ -25,8 +25,13 @@ _le  = None
 def _load_models():
     global _clf, _le
     if _clf is None and os.path.exists(MODEL_PATH) and os.path.exists(ENCODER_PATH):
-        with open(MODEL_PATH,   'rb') as f: _clf = pickle.load(f)
-        with open(ENCODER_PATH, 'rb') as f: _le  = pickle.load(f)
+        try:
+            with open(MODEL_PATH,   'rb') as f: _clf = pickle.load(f)
+            with open(ENCODER_PATH, 'rb') as f: _le  = pickle.load(f)
+        except Exception as e:
+            print(f"Audio model load failed: {e}")
+            _clf = None
+            _le  = None
 
 
 def extract_features(file_path):
