@@ -2,6 +2,7 @@
 text_model.py
 Uses trained TF-IDF + Logistic Regression classifier (text_classifier.pkl)
 to analyse journal entries. Falls back to keyword engine if model not found.
+Models are lazy-loaded (cached after first request) to save RAM on startup.
 """
 
 import os
@@ -12,9 +13,6 @@ import numpy as np
 MODEL_PATH  = os.path.join(os.path.dirname(__file__), 'text_classifier.pkl')
 TFIDF_PATH  = os.path.join(os.path.dirname(__file__), 'tfidf_vectorizer.pkl')
 
-# Risk scores per class (0-100).
-# Suicidal is capped at 95 — we never want to show 100 for UI reasons,
-# but it must dominate the fusion score.
 CLASS_RISK = {
     'Normal':               5,
     'Anxiety':             55,
@@ -25,7 +23,6 @@ CLASS_RISK = {
     'Suicidal':            95,
 }
 
-# Sentiment label shown in the UI
 CLASS_SENTIMENT = {
     'Normal':               'Positive / Neutral',
     'Anxiety':              'Moderately Negative',
@@ -37,21 +34,30 @@ CLASS_SENTIMENT = {
 }
 
 
+# ── Lazy-loaded model cache ───────────────────────────────────────────────────
+
+_clf   = None
+_tfidf = None
+
+def _load_text_models():
+    global _clf, _tfidf
+    if _clf is None:
+        with open(MODEL_PATH, 'rb') as f: _clf   = pickle.load(f)
+        with open(TFIDF_PATH, 'rb') as f: _tfidf = pickle.load(f)
+
+
 # ── ML inference ──────────────────────────────────────────────────────────────
 
 def _ml_analyze(text):
-    with open(MODEL_PATH, 'rb') as f:
-        clf = pickle.load(f)
-    with open(TFIDF_PATH, 'rb') as f:
-        tfidf = pickle.load(f)
+    _load_text_models()
+    clf   = _clf
+    tfidf = _tfidf
 
     vec        = tfidf.transform([text])
     label      = clf.predict(vec)[0]
     proba_arr  = clf.predict_proba(vec)[0]
     proba      = dict(zip(clf.classes_, proba_arr.tolist()))
 
-    # Build per-condition scores from probabilities (scaled to 0-100)
-    # Group into the three conditions the app cares about
     depression_score = round((proba.get('Depression', 0) +
                                proba.get('Suicidal',   0) * 0.8 +
                                proba.get('Bipolar',    0) * 0.5) * 100, 1)
@@ -61,10 +67,9 @@ def _ml_analyze(text):
 
     stress_score     = round(proba.get('Stress', 0) * 100, 1)
 
-    risk_score       = CLASS_RISK.get(label, 30)
-    sentiment        = CLASS_SENTIMENT.get(label, 'Mildly Negative')
+    risk_score = CLASS_RISK.get(label, 30)
+    sentiment  = CLASS_SENTIMENT.get(label, 'Mildly Negative')
 
-    # Dominant condition for the three buckets
     scores_dict = {
         'Depression': depression_score,
         'Anxiety':    anxiety_score,
@@ -73,19 +78,19 @@ def _ml_analyze(text):
     dominant = max(scores_dict, key=scores_dict.get) if risk_score > 10 else 'None detected'
 
     return {
-        'method':            'ML Model (TF-IDF + Logistic Regression)',
-        'risk_score':        risk_score,
-        'sentiment':         sentiment,
-        'ml_label':          label,
-        'ml_confidence':     round(max(proba_arr) * 100, 1),
+        'method':             'ML Model (TF-IDF + Logistic Regression)',
+        'risk_score':         risk_score,
+        'sentiment':          sentiment,
+        'ml_label':           label,
+        'ml_confidence':      round(max(proba_arr) * 100, 1),
         'dominant_condition': dominant,
-        'condition_scores':  {k: round(v, 1) for k, v in scores_dict.items()},
-        'class_probabilities': {k: round(v * 100, 1) for k, v in proba.items()},
-        'word_count':        len(text.split()),
+        'condition_scores':   {k: round(v, 1) for k, v in scores_dict.items()},
+        'class_probabilities':{k: round(v * 100, 1) for k, v in proba.items()},
+        'word_count':         len(text.split()),
     }
 
 
-# ── Keyword fallback (unchanged from original) ────────────────────────────────
+# ── Keyword fallback ──────────────────────────────────────────────────────────
 
 DEPRESSION_KEYWORDS = [
     'sad', 'hopeless', 'worthless', 'empty', 'numb', 'tired', 'exhausted',
