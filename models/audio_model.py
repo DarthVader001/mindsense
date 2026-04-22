@@ -1,7 +1,6 @@
 """
 audio_model.py
-Tries to use trained ML model (audio_classifier.pkl) if available.
-Falls back to rule-based Librosa analysis if model not yet trained.
+Lazy-loads librosa and model files only when analyze_audio() is called.
 """
 
 import os
@@ -19,10 +18,19 @@ RISK_SCORES = {
     'positive':   10,
 }
 
+# Cached model — loaded once on first request, not at startup
+_clf = None
+_le  = None
+
+def _load_models():
+    global _clf, _le
+    if _clf is None and os.path.exists(MODEL_PATH) and os.path.exists(ENCODER_PATH):
+        with open(MODEL_PATH,   'rb') as f: _clf = pickle.load(f)
+        with open(ENCODER_PATH, 'rb') as f: _le  = pickle.load(f)
+
 
 def extract_features(file_path):
-    """Extract 32 Librosa features from audio file."""
-    import librosa
+    import librosa  # imported here, not at top of file
     y, sr = librosa.load(file_path, sr=22050, duration=30)
     features = []
 
@@ -52,18 +60,15 @@ def extract_features(file_path):
 
 def analyze_audio(audio_path):
     try:
-        import librosa
+        import librosa  # imported here, not at top of file
 
         feats, y, sr = extract_features(audio_path)
+        _load_models()
 
-        # ── Try ML model first ─────────────────────────────
-        if os.path.exists(MODEL_PATH) and os.path.exists(ENCODER_PATH):
-            with open(MODEL_PATH,   'rb') as f: clf = pickle.load(f)
-            with open(ENCODER_PATH, 'rb') as f: le  = pickle.load(f)
-
-            pred_enc  = clf.predict([feats])[0]
-            pred_prob = clf.predict_proba([feats])[0]
-            label     = le.inverse_transform([pred_enc])[0]
+        if _clf is not None and _le is not None:
+            pred_enc   = _clf.predict([feats])[0]
+            pred_prob  = _clf.predict_proba([feats])[0]
+            label      = _le.inverse_transform([pred_enc])[0]
             confidence = round(max(pred_prob) * 100, 1)
             risk_score = RISK_SCORES.get(label, 30)
 
@@ -73,11 +78,11 @@ def analyze_audio(audio_path):
                 'confidence': confidence,
                 'risk_score': risk_score,
                 'features': {
-                    'mean_pitch_hz':    round(feats[26], 1),
-                    'pitch_variability':round(feats[27], 1),
-                    'mean_energy':      round(feats[28], 4),
-                    'tempo_bpm':        round(feats[29], 1),
-                    'spectral_centroid':round(feats[30], 1),
+                    'mean_pitch_hz':     round(feats[26], 1),
+                    'pitch_variability': round(feats[27], 1),
+                    'mean_energy':       round(feats[28], 4),
+                    'tempo_bpm':         round(feats[29], 1),
+                    'spectral_centroid': round(feats[30], 1),
                 },
                 'audio_duration_sec': round(len(y) / sr, 1)
             }
@@ -119,17 +124,17 @@ def analyze_audio(audio_path):
             'method':     'Rule-based (train model for ML)',
             'risk_score': round(risk_score, 1),
             'features': {
-                'mean_pitch_hz':    round(mean_pitch, 1),
-                'pitch_variability':round(pitch_std, 1),
-                'mean_energy':      round(mean_energy, 4),
-                'tempo_bpm':        round(tempo, 1),
-                'spectral_centroid':round(feats[30], 1),
+                'mean_pitch_hz':     round(mean_pitch, 1),
+                'pitch_variability': round(pitch_std,  1),
+                'mean_energy':       round(mean_energy, 4),
+                'tempo_bpm':         round(tempo, 1),
+                'spectral_centroid': round(feats[30], 1),
             },
             'indicators': indicators,
             'audio_duration_sec': round(len(y) / sr, 1)
         }
 
     except ImportError:
-        return {'risk_score': 0, 'error': 'librosa not installed. Run: pip install librosa'}
+        return {'risk_score': 0, 'error': 'librosa not installed'}
     except Exception as e:
         return {'risk_score': 0, 'error': str(e)}
