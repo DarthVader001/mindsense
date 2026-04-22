@@ -1,9 +1,9 @@
 flask==3.0.0
-numpy==1.26.2
+numpy>=1.26.4
 librosa==0.10.1
-scikit-learn==1.4.2
+scikit-learn==1.8.0
 pandas==2.1.4
 matplotlib==3.8.2
 gunicorn==21.2.0
+gspread==6.1.2
 google-auth==2.29.0
-gspread==5.12.4
