@@ -1,21 +1,62 @@
-import os, sys, json
+import os, sys, json, threading
 from flask import Flask, request, jsonify, render_template
 from models.text_model import analyze_text
 from models.questionnaire_model import analyze_questionnaire
 from models.audio_model import analyze_audio
-from test_users import log_result, init_log
+
+import gspread
+from google.oauth2.service_account import Credentials
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Pass --test flag to enable user logging: python app.py --test
-TEST_MODE = '--test' in sys.argv
-if TEST_MODE:
-    init_log()
-    print("  TEST MODE ON — results will be saved to test_results.csv")
+# ── Google Sheets setup ───────────────────────────────────
+SPREADSHEET_ID = '1S6YnuO2wvF19lwDgRt7DsnZdRr53bD3703y2kp7I0-k'
 
-user_counter = 0   # simple incrementing user ID
+def get_sheet():
+    creds_json = os.environ.get('GOOGLE_CREDENTIALS_JSON')
+    if not creds_json:
+        print("WARNING: GOOGLE_CREDENTIALS_JSON not set")
+        return None
+    creds_dict = json.loads(creds_json)
+    scopes = ['https://www.googleapis.com/auth/spreadsheets']
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+    client = gspread.authorize(creds)
+    sheet = client.open_by_key(SPREADSHEET_ID).sheet1
+    # Add header row if sheet is empty
+    if sheet.row_count == 0 or sheet.cell(1, 1).value is None:
+        sheet.append_row([
+            'user_id', 'timestamp',
+            'text_score', 'questionnaire_score', 'audio_score',
+            'final_score', 'risk_level', 'modalities_used'
+        ])
+    return sheet
+
+def log_to_sheets(user_id, results):
+    """Run in background thread so it doesn't slow down the response"""
+    try:
+        import datetime
+        sheet = get_sheet()
+        if sheet is None:
+            return
+        fusion = results.get('fusion', {})
+        row = [
+            user_id,
+            datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            results.get('text', {}).get('risk_score', ''),
+            results.get('questionnaire', {}).get('risk_score', ''),
+            results.get('audio', {}).get('risk_score', ''),
+            fusion.get('final_score', ''),
+            fusion.get('risk_level', ''),
+            ', '.join(fusion.get('modalities_used', []))
+        ]
+        sheet.append_row(row)
+        print(f"  Logged {user_id} to Google Sheets")
+    except Exception as e:
+        print(f"  Sheets logging error: {e}")
+
+user_counter = 0
 
 
 @app.route('/')
@@ -63,7 +104,6 @@ def analyze():
         results['audio'] = {'status': 'not_provided', 'message': 'No audio uploaded'}
 
     # ── Weighted Fusion ───────────────────────────────────
-    # Questionnaire 45%  |  Text 35%  |  Audio 20%
     WEIGHTS = {'questionnaire': 0.45, 'text': 0.35, 'audio': 0.20}
 
     if modality_scores:
@@ -91,10 +131,12 @@ def analyze():
             'note':            f"Score based on: {', '.join(modality_scores.keys())}"
         }
 
-        # ── Log test user result ──────────────────────────
-        if TEST_MODE:
-            user_counter += 1
-            log_result(f"user_{user_counter:03d}", results)
+        # ── Log to Google Sheets in background ───────────
+        user_counter += 1
+        user_id = f"user_{user_counter:03d}"
+        thread = threading.Thread(target=log_to_sheets, args=(user_id, results))
+        thread.daemon = True
+        thread.start()
 
     return jsonify(results)
 
@@ -102,11 +144,7 @@ def analyze():
 if __name__ == '__main__':
     print("=========================================")
     print("  MindSense — Final Build")
-    print("  Text NLP:          COMPLETE")
-    print("  PHQ-9 + GAD-7:     COMPLETE")
-    print("  Audio (Librosa):   COMPLETE")
-    print("  Weighted Fusion:   COMPLETE")
-    print(f"  Test logging:      {'ON' if TEST_MODE else 'OFF (use --test flag)'}")
+    print("  Google Sheets logging: ON")
     print("  Open: http://localhost:5000")
     print("=========================================")
     app.run(debug=True, port=5000)
